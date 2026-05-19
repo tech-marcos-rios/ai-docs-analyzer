@@ -1,6 +1,8 @@
-# Proyecto 2 — Asistente con IA para generar contenido
+# 05 — AI Docs Analyzer: asistente con IA
 
-> Proyecto pequeño pero diferenciador. Demuestra que sabes integrar IA, manejar streaming y entender costos. Tiempo estimado: **1 semana**.
+> GitHub: [tech-marcos-rios/ai-docs-analyzer](https://github.com/tech-marcos-rios/ai-docs-analyzer)
+
+Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 📋 planificado.
 
 ## ¿Qué construir?
 
