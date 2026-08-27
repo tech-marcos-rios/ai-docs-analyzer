@@ -2,7 +2,7 @@
 
 > GitHub: [tech-marcos-rios/ai-docs-analyzer](https://github.com/tech-marcos-rios/ai-docs-analyzer)
 
-Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 🚧 backend en desarrollo (scaffold + endpoint de generación funcionando).
+Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 🚧 backend y frontend funcionando end-to-end en local — falta probar con una API key real y deployar.
 
 ## ¿Qué construir?
 
@@ -13,7 +13,7 @@ Por qué este caso: tiene mercado real (cualquier tienda de Mercado Libre o Shop
 ## Stack
 
 - **Backend: Node.js 20+ / TypeScript estricto / Express** — elegido a propósito como proyecto de aprendizaje de Node.js aplicando patrones de Clean Architecture, distinto al resto del portafolio (.NET). Ver `api/CLAUDE.md` para el detalle de arquitectura.
-- Frontend: Next.js 14 + TypeScript + Tailwind (pendiente)
+- Frontend: Next.js 16 + TypeScript + Tailwind v4 + React Hook Form + Zod
 - IA: Claude API (Anthropic), con arquitectura de proveedor intercambiable (Strategy/Adapter) para poder sumar OpenAI/Gemini sin tocar el resto del código
 - Storage: PostgreSQL (vía Prisma) para historial de generaciones
 
@@ -33,7 +33,22 @@ npm install
 docker compose -f docker-compose.dev.yml up -d   # Postgres local, puerto 5435
 npx prisma migrate dev
 cp .env.example .env   # y completar ANTHROPIC_API_KEY con una key real
-npm run dev
+npm run dev   # puerto 3000
+```
+
+## Frontend — estado actual
+
+Implementado en `web/` con Next.js 16 (no 14 como decía la convención original del portafolio: `create-next-app@14.2.5` resultó tener ~28 CVEs acumulados, incluyendo uno crítico, así que se usó la última versión parcheada en su lugar):
+- Formulario (producto, características dinámicas, tono, idioma) con React Hook Form + Zod, mismo shape que el schema del backend.
+- Consumo del streaming SSE en tiempo real vía `fetch` + `ReadableStream` (no se puede usar `EventSource` nativo porque el endpoint necesita POST con body).
+- Panel de historial (`GET /api/history`) con export a CSV y copiar al portapapeles.
+- Tema oscuro fijo, Tailwind v4.
+
+Cómo correrlo en local (con el backend ya corriendo en el puerto 3000):
+```bash
+cd web
+npm install
+npm run dev   # puerto 5173, ya configurado en .env.local
 ```
 
 ## Features
@@ -52,14 +67,14 @@ npm run dev
 - Guardar cada generación en DB.
 - Endpoint `GET /api/history`.
 
-### Día 2-3: Frontend principal
+### Día 2-3: Frontend principal ✅
 - Formulario con React Hook Form + Zod.
-- Selector de plantilla.
-- Stream de respuesta con `EventSource` o `fetch` + `ReadableStream`.
+- Stream de respuesta con `fetch` + `ReadableStream`.
+- Pendiente: selector de plantillas predefinidas (no implementado todavía).
 
-### Día 4: Historial + export
-- Drawer/modal con historial.
-- Exportar selección a CSV.
+### Día 4: Historial + export ✅
+- Panel de historial (sin drawer/modal, integrado en la página).
+- Exportar a CSV.
 
 ### Día 5: Polish + deploy
 - Animaciones, estados de carga, toasts de error.
