@@ -1,0 +1,26 @@
+generator client {
+  provider             = "prisma-client"
+  output               = "../src/generated/prisma"
+  runtime              = "nodejs"
+  moduleFormat         = "esm"
+  importFileExtension  = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Generation {
+  id            String   @id @default(uuid())
+  productName   String
+  features      String[]
+  tone          String
+  language      String
+  generatedText String
+  provider      String
+  model         String
+  tokensUsed    Int
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}

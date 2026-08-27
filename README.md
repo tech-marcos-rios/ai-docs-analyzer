@@ -2,7 +2,7 @@
 
 > GitHub: [tech-marcos-rios/ai-docs-analyzer](https://github.com/tech-marcos-rios/ai-docs-analyzer)
 
-Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 📋 planificado.
+Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 🚧 backend en desarrollo (scaffold + endpoint de generación funcionando).
 
 ## ¿Qué construir?
 
@@ -12,10 +12,29 @@ Por qué este caso: tiene mercado real (cualquier tienda de Mercado Libre o Shop
 
 ## Stack
 
-- Backend: .NET 8 Web API (sirve solo de proxy seguro a la API de Claude/OpenAI, así no exponés la API key)
-- Frontend: Next.js 14 + TypeScript + Tailwind
-- IA: Claude API (Anthropic) o OpenAI API
-- Storage: SQLite o PostgreSQL para historial
+- **Backend: Node.js 20+ / TypeScript estricto / Express** — elegido a propósito como proyecto de aprendizaje de Node.js aplicando patrones de Clean Architecture, distinto al resto del portafolio (.NET). Ver `api/CLAUDE.md` para el detalle de arquitectura.
+- Frontend: Next.js 14 + TypeScript + Tailwind (pendiente)
+- IA: Claude API (Anthropic), con arquitectura de proveedor intercambiable (Strategy/Adapter) para poder sumar OpenAI/Gemini sin tocar el resto del código
+- Storage: PostgreSQL (vía Prisma) para historial de generaciones
+
+## Backend — estado actual
+
+Implementado en `api/`:
+- Arquitectura en capas (`domain` / `application` / `infrastructure` / `api`), Result pattern, DI manual.
+- Endpoint `POST /api/generate` con streaming SSE real (Claude Haiku 4.5).
+- Endpoint `GET /api/history` con las últimas generaciones.
+- Rate limiting (5/min, 50/día por IP), validación con Zod, logging con Pino.
+- Tests (Vitest + Supertest) y build de producción verificados.
+
+Cómo correrlo en local:
+```bash
+cd api
+npm install
+docker compose -f docker-compose.dev.yml up -d   # Postgres local, puerto 5435
+npx prisma migrate dev
+cp .env.example .env   # y completar ANTHROPIC_API_KEY con una key real
+npm run dev
+```
 
 ## Features
 
@@ -28,10 +47,10 @@ Por qué este caso: tiene mercado real (cualquier tienda de Mercado Libre o Shop
 
 ## Plan paso a paso
 
-### Día 1: Backend proxy
+### Día 1: Backend proxy ✅
 - Endpoint `POST /api/generate` que recibe el prompt construido y hace streaming server-sent events de Claude API.
 - Guardar cada generación en DB.
-- Endpoint `GET /api/history` con paginación.
+- Endpoint `GET /api/history`.
 
 ### Día 2-3: Frontend principal
 - Formulario con React Hook Form + Zod.
@@ -44,7 +63,7 @@ Por qué este caso: tiene mercado real (cualquier tienda de Mercado Libre o Shop
 
 ### Día 5: Polish + deploy
 - Animaciones, estados de carga, toasts de error.
-- Deploy backend (Render/Azure) y frontend (Vercel).
+- Deploy backend (Hetzner :5030, ver `docs/INFRAESTRUCTURA.md`) y frontend (Vercel).
 - Limitar uso por IP para evitar abuso.
 
 ## Manejo de costos
