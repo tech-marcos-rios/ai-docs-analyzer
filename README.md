@@ -2,7 +2,7 @@
 
 > GitHub: [tech-marcos-rios/ai-docs-analyzer](https://github.com/tech-marcos-rios/ai-docs-analyzer)
 
-Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 🚧 backend y frontend funcionando end-to-end en local — falta probar con una API key real y deployar.
+Proyecto diferenciador: demuestra integración con IA, streaming y manejo de costos. Tiempo estimado: **1 semana**. Estado: 🚧 código listo (backend + frontend + Docker + CI verde en GitHub), pusheado a `master`. Falta: confirmación visual en el navegador y el deploy real (bloqueado por la cuenta de Hetzner).
 
 ## ¿Qué construir?
 
@@ -21,10 +21,13 @@ Por qué este caso: tiene mercado real (cualquier tienda de Mercado Libre o Shop
 
 Implementado en `api/`:
 - Arquitectura en capas (`domain` / `application` / `infrastructure` / `api`), Result pattern, DI manual.
-- Endpoint `POST /api/generate` con streaming SSE real (Claude Haiku 4.5).
+- Endpoint `POST /api/generate` con streaming SSE real (Claude Haiku 4.5) — probado con una API key real, no solo mockeado.
 - Endpoint `GET /api/history` con las últimas generaciones.
-- Rate limiting (5/min, 50/día por IP), validación con Zod, logging con Pino.
-- Tests (Vitest + Supertest) y build de producción verificados.
+- Historial scopeado por cliente anónimo (header `X-Client-Id`, sin auth real) — cada visitante solo ve el suyo.
+- Rate limiting por IP (5/min, 50/día) **+ tope global diario** (300 generaciones/24hs entre todos los clientes) para que el límite por IP no se pueda esquivar repartiendo requests entre varias IPs.
+- Validación con Zod, logging con Pino, `TRUST_PROXY_HOPS` configurable para cuando haya un reverse proxy en producción.
+- Tests (Vitest + Supertest, 8 casos), build de producción y CI (GitHub Actions) verificados en verde.
+- `deploy/Dockerfile` (multi-stage) + `deploy/docker-compose.yml` (`db` → `migrator` → `api`) probados de punta a punta local contra Postgres real.
 
 Cómo correrlo en local:
 ```bash
@@ -41,7 +44,8 @@ npm run dev   # puerto 3000
 Implementado en `web/` con Next.js 16 (no 14 como decía la convención original del portafolio: `create-next-app@14.2.5` resultó tener ~28 CVEs acumulados, incluyendo uno crítico, así que se usó la última versión parcheada en su lugar):
 - Formulario (producto, características dinámicas, tono, idioma) con React Hook Form + Zod, mismo shape que el schema del backend.
 - Consumo del streaming SSE en tiempo real vía `fetch` + `ReadableStream` (no se puede usar `EventSource` nativo porque el endpoint necesita POST con body).
-- Panel de historial (`GET /api/history`) con export a CSV y copiar al portapapeles.
+- ID anónimo por visitante (`lib/clientId.ts`, UUID en `localStorage`) enviado como `X-Client-Id` — necesario para que el backend sepa de quién es cada generación.
+- Panel de historial (`GET /api/history`) con export a CSV (con neutralización de formula injection) y copiar al portapapeles.
 - Tema oscuro fijo, Tailwind v4.
 
 Cómo correrlo en local (con el backend ya corriendo en el puerto 3000):
@@ -55,9 +59,9 @@ npm run dev   # puerto 5173, ya configurado en .env.local
 
 ### Bloqueante / core — para considerarlo terminado y mostrable
 - [ ] Probar en el navegador (`http://localhost:5173`) — pendiente de confirmación visual.
-- [ ] Push de los commits locales a GitHub.
+- [x] Push de los commits a GitHub — `master` al día, todo en `github.com/tech-marcos-rios/ai-docs-analyzer`.
 - [x] Dockerfile del backend + `docker-compose` de producción (`api/deploy/`), probado de punta a punta local: `db` → `migrator` → `api` sobre Postgres real.
-- [x] CI (lint + build + test en cada push a `master`) — `.github/workflows/ci.yml`, jobs separados para `api` y `web`.
+- [x] CI (lint + build + test en cada push a `master`) — `.github/workflows/ci.yml`, verificado en verde en GitHub Actions (no solo local), jobs separados para `api` y `web`.
 - [ ] Deploy real: backend en Hetzner `:5030` (bloqueado por la recuperación de la cuenta de Hetzner, ver `docs/INFRAESTRUCTURA.md` en la raíz) y frontend en Vercel. Falta también configurar los secrets `HETZNER_HOST`/`HETZNER_SSH_KEY` en GitHub Actions y el workflow de `deploy.yml` (CI ya está, deploy automático todavía no).
 - [ ] README con capturas + demo en vivo + video Loom de 90s (estándar de calidad del portafolio, `CLAUDE.md` raíz).
 

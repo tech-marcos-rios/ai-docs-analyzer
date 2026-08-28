@@ -36,8 +36,13 @@ Decisión clave: usar Claude por default, pero la arquitectura permite cambiar a
 
 ```typescript
 // application/ports/AiProvider.ts
+export interface AiGenerationStream extends AsyncIterable<{ text: string }> {
+  getUsage(): Promise<{ tokensUsed: number; model: string }>; // ≈ stream.finalMessage() del SDK
+}
+
 export interface AiProvider {
-  generateStream(prompt: string, maxTokens?: number): AsyncIterable<string>;
+  readonly name: string;
+  generateStream(prompt: string, maxTokens: number): AiGenerationStream;
 }
 ```
 
@@ -66,10 +71,17 @@ Los services retornan `Result<T>` o `Result`, nunca lanzan excepciones para lóg
 
 ## Control de costos de IA — reglas que NO romper
 
-- `maxTokens` tope de ~500 por generación (input de usuario es corto, no necesita más).
-- Rate limiting: 5 requests/minuto y 50/día por IP (`express-rate-limit`), aplicado en el route de generación.
+- `maxTokens` tope de ~500 por generación (input de usuario es corto, no necesita más) — `application/common/constants.ts`.
+- Rate limiting: 5 requests/minuto y 50/día por IP (`express-rate-limit`), aplicado en `/api/generate` y `/api/history`.
+- **Tope global diario** (`GLOBAL_DAILY_GENERATION_LIMIT`, hoy 300/24hs entre todos los clientes juntos) chequeado en `GenerateCopyService.checkGlobalCapacity()` antes de llamar a la IA — el rate limit por IP solo no alcanza porque alguien podría repartir pedidos entre muchas IPs.
 - Nunca loguear el contenido completo de prompts/respuestas en producción (costo + privacidad) — solo tokens usados y duración.
 - Modelo default: el más barato que dé calidad aceptable (`claude-haiku-4-5`). Subir de modelo requiere justificación explícita, no es una decisión unilateral del agente.
+
+---
+
+## Scoping del historial — `X-Client-Id`
+
+`GET /api/history` y `POST /api/generate` requieren el header `X-Client-Id` (validado en `api/requestClientId.ts`, 400 si falta). Es un UUID anónimo que genera el frontend y persiste en `localStorage` (`web/src/lib/clientId.ts`) — **no es autenticación real**, solo evita que un visitante vea el historial de otro. Si se agrega auth de verdad en el futuro, este mecanismo se reemplaza, no se apila.
 
 ---
 
@@ -77,12 +89,31 @@ Los services retornan `Result<T>` o `Result`, nunca lanzan excepciones para lóg
 
 ```
 # .env (gitignoreado)
-DATABASE_URL=postgresql://user:pass@localhost:5433/ai_docs_dev
+DATABASE_URL=postgresql://postgres:postgres@localhost:5435/ai_docs_dev
 ANTHROPIC_API_KEY=sk-ant-...
 AI_PROVIDER=claude
 PORT=3000
 CORS_ORIGIN=http://localhost:5173
+LOG_LEVEL=debug
+TRUST_PROXY_HOPS=0   # poner en 1 detrás de Nginx/Cloudflare en producción
 ```
+
+**`LOG_LEVEL=debug` está atado a `NODE_ENV`, no al revés** (`infrastructure/logging/logger.ts`): en producción nunca usa `pino-pretty` (es devDependency, no viaja en la imagen — ver `deploy/Dockerfile`) sin importar qué `LOG_LEVEL` se configure. No desatar esa lógica sin revisar el Dockerfile.
+
+---
+
+## Deploy
+
+| Recurso | Estado |
+|---|---|
+| Backend (Hetzner, puerto planeado `5030`) | No desplegado — bloqueado por recuperación de cuenta Hetzner, ver `docs/INFRAESTRUCTURA.md` |
+| `api/deploy/Dockerfile` | Listo y probado (multi-stage: deps → build → runtime, imagen final sin devDependencies) |
+| `api/deploy/docker-compose.yml` | Listo y probado — `db` (Postgres) → `migrator` (`prisma migrate deploy`, efímero) → `api`, mismo patrón que `p-aeon` |
+| CI (`.github/workflows/ci.yml`) | Verde en GitHub Actions — jobs `api` (lint+build+test) y `web` (lint+build) |
+| `deploy.yml` (deploy automático por SSH) | No existe todavía — falta crearlo + secrets `HETZNER_HOST`/`HETZNER_SSH_KEY` en GitHub |
+| Frontend (Vercel) | No desplegado |
+
+Cuando se despliegue, `TRUST_PROXY_HOPS` queda en `0` mientras el acceso sea directo por IP:puerto (sin Nginx/Cloudflare adelante) — subir a `1` recién si se suma un reverse proxy.
 
 ---
 
