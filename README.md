@@ -51,6 +51,22 @@ npm install
 npm run dev   # puerto 5173, ya configurado en .env.local
 ```
 
+## Próximos pasos (2026-08-28)
+
+### Bloqueante / core — para considerarlo terminado y mostrable
+- [ ] Probar en el navegador (`http://localhost:5173`) — pendiente de confirmación visual.
+- [ ] Push de los commits locales a GitHub.
+- [ ] Dockerfile del backend + `docker-compose` de producción (hoy `docker-compose.dev.yml` solo levanta Postgres para desarrollo local; falta el equivalente al `deploy/` de `p-aeon`).
+- [ ] CI (lint + test + build en cada push) — `03-afip-net` y `p-aeon` ya lo tienen, `05` todavía no.
+- [ ] Deploy real: backend en Hetzner `:5030` (bloqueado por la recuperación de la cuenta de Hetzner, ver `docs/INFRAESTRUCTURA.md` en la raíz) y frontend en Vercel.
+- [ ] README con capturas + demo en vivo + video Loom de 90s (estándar de calidad del portafolio, `CLAUDE.md` raíz).
+
+### Nice-to-have — no bloquea mostrar el proyecto
+- [ ] Selector de plantillas predefinidas (quedó en el plan original, sin implementar).
+- [ ] Mostrar el costo estimado en la UI (se guarda `tokensUsed` en el historial, pero no se le muestra al usuario).
+- [ ] Tests en el frontend (el backend tiene 8, el frontend cero).
+- [ ] Implementar OpenAI/Gemini como providers reales (la arquitectura `AiProvider` ya lo permite).
+
 ## Features
 
 1. Formulario: nombre del producto, características (lista), tono (formal/casual/divertido), idioma, longitud.

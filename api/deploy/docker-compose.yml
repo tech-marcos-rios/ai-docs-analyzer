@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ai-docs-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ai_docs
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ai_docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Contenedor efímero: aplica migraciones pendientes y termina (exit 0).
+  # La imagen es la misma que "api" — el Dockerfile define el server como
+  # CMD por defecto, y acá lo pisamos con el comando de Prisma.
+  migrator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: "no"
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/ai_docs"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: ai-docs-api
+    restart: unless-stopped
+    ports:
+      - "5030:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/ai_docs"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AI_PROVIDER: claude
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      LOG_LEVEL: info
+      # Server de portfolio sin dominio/Nginx todavía (acceso directo por
+      # IP:puerto, ver docs/INFRAESTRUCTURA.md) — sin proxy en el medio,
+      # no hay que confiar en X-Forwarded-For. Cambiar a 1 el día que se
+      # sume Nginx/Cloudflare delante (igual que en p-aeon).
+      TRUST_PROXY_HOPS: 0
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
