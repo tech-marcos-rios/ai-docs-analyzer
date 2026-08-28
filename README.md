@@ -45,7 +45,7 @@ Implementado en `web/` con Next.js 16 (no 14 como decía la convención original
 - Formulario (producto, características dinámicas, tono, idioma) con React Hook Form + Zod, mismo shape que el schema del backend.
 - Consumo del streaming SSE en tiempo real vía `fetch` + `ReadableStream` (no se puede usar `EventSource` nativo porque el endpoint necesita POST con body).
 - ID anónimo por visitante (`lib/clientId.ts`, UUID en `localStorage`) enviado como `X-Client-Id` — necesario para que el backend sepa de quién es cada generación.
-- Panel de historial (`GET /api/history`) con export a CSV (con neutralización de formula injection) y copiar al portapapeles.
+- Panel de historial (`GET /api/history`) con export a CSV (con neutralización de formula injection y BOM UTF-8 para que Excel no rompa tildes/ñ/emojis) y copiar al portapapeles.
 - Tema oscuro fijo, Tailwind v4.
 
 Cómo correrlo en local (con el backend ya corriendo en el puerto 3000):
@@ -55,10 +55,16 @@ npm install
 npm run dev   # puerto 5173, ya configurado en .env.local
 ```
 
+## Seguridad (revisado 2026-08-28)
+
+Medidas ya implementadas: `helmet` + `cors` restringido, validación de entrada con Zod en todos los endpoints (incluido el header `X-Client-Id`), rate limiting por IP + tope global diario, tope de tokens de salida, errores internos nunca expuestos al cliente (solo logueados), neutralización de CSV/formula injection en el export, secrets solo en `.env` (gitignoreado) + hook `check-secrets.ps1`, y Prisma como ORM (sin SQL manual, sin superficie de SQL injection).
+
+`npm audit` (`api/`): 3 vulnerabilidades **high**, todas de la misma cadena `prisma@7.10.0 → @prisma/config → deepmerge-ts@7.1.5` ([GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx), stack exhaustion). No hay fix estable todavía — la última versión estable de `@prisma/config` (7.10.0, la instalada) sigue pineando la versión vulnerable de `deepmerge-ts`; el único fix es `prisma@8.0.0-rc.12` (release candidate, no estable). No se aplica: `deepmerge-ts` lo usa el CLI de Prisma al resolver `prisma.config.ts` (build/migrate time), no el cliente en runtime que atiende requests HTTP — no es una superficie alcanzable remotamente. Queda trackeado para revisar cuando Prisma publique una versión 7.x o 8.x estable que la resuelva. `npm audit` en `web/`: 0 vulnerabilidades.
+
 ## Próximos pasos (2026-08-28)
 
 ### Bloqueante / core — para considerarlo terminado y mostrable
-- [ ] Probar en el navegador (`http://localhost:5173`) — pendiente de confirmación visual.
+- [ ] Probar en el navegador (`http://localhost:5173`) — pendiente de confirmación visual (2026-08-28: se validó el fix del export CSV solo con lint + build, todavía no con navegador real).
 - [x] Push de los commits a GitHub — `master` al día, todo en `github.com/tech-marcos-rios/ai-docs-analyzer`.
 - [x] Dockerfile del backend + `docker-compose` de producción (`api/deploy/`), probado de punta a punta local: `db` → `migrator` → `api` sobre Postgres real.
 - [x] CI (lint + build + test en cada push a `master`) — `.github/workflows/ci.yml`, verificado en verde en GitHub Actions (no solo local), jobs separados para `api` y `web`.
