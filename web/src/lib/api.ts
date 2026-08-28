@@ -1,3 +1,4 @@
+import { getClientId } from "./clientId";
 import type { GenerateCopyRequest, Generation } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
@@ -30,7 +31,7 @@ export async function* streamGeneration(
 ): AsyncGenerator<SseEvent> {
   const response = await fetch(`${API_URL}/api/generate`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "X-Client-Id": getClientId() },
     body: JSON.stringify(request),
     signal,
   });
@@ -64,7 +65,9 @@ export async function* streamGeneration(
 }
 
 export async function fetchHistory(limit = 20): Promise<Generation[]> {
-  const response = await fetch(`${API_URL}/api/history?limit=${limit}`);
+  const response = await fetch(`${API_URL}/api/history?limit=${limit}`, {
+    headers: { "X-Client-Id": getClientId() },
+  });
   if (!response.ok) {
     throw new Error("No se pudo cargar el historial.");
   }

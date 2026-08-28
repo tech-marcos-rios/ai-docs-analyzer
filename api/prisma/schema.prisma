@@ -12,6 +12,7 @@ datasource db {
 
 model Generation {
   id            String   @id @default(uuid())
+  clientId      String
   productName   String
   features      String[]
   tone          String
@@ -23,4 +24,5 @@ model Generation {
   createdAt     DateTime @default(now())
 
   @@index([createdAt])
+  @@index([clientId, createdAt])
 }

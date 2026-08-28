@@ -3,14 +3,27 @@ import { generateCopyRequestSchema } from "../../application/dtos/GenerateCopyRe
 import type { GenerateCopyService } from "../../application/services/GenerateCopyService.js";
 import { perDayLimiter, perMinuteLimiter } from "../middleware/rateLimiter.js";
 import { logger } from "../../infrastructure/logging/logger.js";
+import { parseClientId } from "../requestClientId.js";
 
 export function generateRoutes(generateCopyService: GenerateCopyService): Router {
   const router = Router();
 
   router.post("/generate", perMinuteLimiter, perDayLimiter, async (req, res, next) => {
+    const clientId = parseClientId(req);
+    if (!clientId.success) {
+      next(clientId.error);
+      return;
+    }
+
     const parsed = generateCopyRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       next(parsed.error);
+      return;
+    }
+
+    const capacity = await generateCopyService.checkGlobalCapacity();
+    if (!capacity.isSuccess) {
+      res.status(429).json({ status: 429, title: capacity.error });
       return;
     }
 
@@ -22,7 +35,7 @@ export function generateRoutes(generateCopyService: GenerateCopyService): Router
     res.flushHeaders();
 
     try {
-      const result = await generateCopyService.generate(parsed.data, (chunk) => {
+      const result = await generateCopyService.generate(parsed.data, clientId.data, (chunk) => {
         res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
       });
 

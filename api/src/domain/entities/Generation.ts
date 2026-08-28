@@ -1,5 +1,6 @@
 export interface Generation {
   id: string;
+  clientId: string;
   productName: string;
   features: string[];
   tone: string;

@@ -9,10 +9,17 @@ export class PrismaGenerationRepository implements GenerationRepository {
     return this.prisma.generation.create({ data });
   }
 
-  async getRecent(limit: number): Promise<Generation[]> {
+  async getRecent(clientId: string, limit: number): Promise<Generation[]> {
     return this.prisma.generation.findMany({
+      where: { clientId },
       orderBy: { createdAt: "desc" },
       take: limit,
+    });
+  }
+
+  async countSince(since: Date): Promise<number> {
+    return this.prisma.generation.count({
+      where: { createdAt: { gte: since } },
     });
   }
 }
