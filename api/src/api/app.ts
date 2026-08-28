@@ -18,6 +18,12 @@ interface Dependencies {
 export function createApp({ generateCopyService, generationRepository }: Dependencies): Express {
   const app = express();
 
+  // Sin esto, express-rate-limit usa la IP del proxy (no la del cliente real)
+  // cuando la app corre detrás de Nginx/Cloudflare en producción.
+  if (env.TRUST_PROXY_HOPS > 0) {
+    app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  }
+
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGIN }));
   app.use(express.json());

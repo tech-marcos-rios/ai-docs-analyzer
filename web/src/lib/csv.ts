@@ -1,10 +1,22 @@
 import type { Generation } from "./types";
 
-function escapeCsvValue(value: string): string {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+// Neutraliza CSV/formula injection: si Excel/Sheets abre una celda que arranca
+// con estos caracteres, la interpreta como fórmula en vez de texto.
+const FORMULA_TRIGGER_CHARS = ["=", "+", "-", "@", "\t", "\r"];
+
+function neutralizeFormula(value: string): string {
+  if (value.length > 0 && FORMULA_TRIGGER_CHARS.includes(value[0])) {
+    return `'${value}`;
   }
   return value;
+}
+
+function escapeCsvValue(value: string): string {
+  const safeValue = neutralizeFormula(value);
+  if (/[",\n]/.test(safeValue)) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
+  }
+  return safeValue;
 }
 
 export function generationsToCsv(generations: Generation[]): string {
