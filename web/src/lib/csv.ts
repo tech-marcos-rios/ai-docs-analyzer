@@ -29,8 +29,12 @@ export function generationsToCsv(generations: Generation[]): string {
   return [header.join(","), ...rows].join("\n");
 }
 
+// BOM UTF-8: sin esto, Excel en Windows ignora el charset del Blob y abre
+// el CSV como ANSI, rompiendo tildes/ñ/emojis (ej. "á" -> "Ã¡").
+const UTF8_BOM = String.fromCharCode(0xfeff);
+
 export function downloadCsv(filename: string, csvContent: string): void {
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob([UTF8_BOM + csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
