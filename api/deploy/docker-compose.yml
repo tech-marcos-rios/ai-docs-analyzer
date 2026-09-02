@@ -1,3 +1,5 @@
+name: ai-docs
+
 services:
   db:
     image: postgres:16-alpine

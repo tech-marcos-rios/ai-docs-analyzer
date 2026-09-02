@@ -1,0 +1,45 @@
+name: Deploy AI Docs Analyzer
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build (TypeScript -> dist/)
+        run: npm run build
+
+      - name: Deploy to Hetzner via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/ai-docs-analyzer
+            git pull origin master
+            docker compose -f api/deploy/docker-compose.yml up --build -d
+            docker image prune -f
