@@ -33,13 +33,17 @@ jobs:
 
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: ANTHROPIC_API_KEY
           script: |
             set -e
             cd /opt/ai-docs-analyzer
             git pull origin master
+            sed -i "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY|" api/deploy/.env
             docker compose -f api/deploy/docker-compose.yml up --build -d
             docker image prune -f
