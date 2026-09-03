@@ -40,7 +40,7 @@ services:
     container_name: ai-docs-api
     restart: unless-stopped
     ports:
-      - "5030:3000"
+      - "127.0.0.1:5030:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -49,11 +49,11 @@ services:
       AI_PROVIDER: claude
       CORS_ORIGIN: ${CORS_ORIGIN}
       LOG_LEVEL: info
-      # Server de portfolio sin dominio/Nginx todavía (acceso directo por
-      # IP:puerto, ver docs/INFRAESTRUCTURA.md) — sin proxy en el medio,
-      # no hay que confiar en X-Forwarded-For. Cambiar a 1 el día que se
-      # sume Nginx/Cloudflare delante (igual que en p-aeon).
-      TRUST_PROXY_HOPS: 0
+      # Caddy corre delante como reverse proxy (ver docs/INFRAESTRUCTURA.md) —
+      # confiar en 1 hop para que Express lea el X-Forwarded-For real de
+      # Caddy y el rate limiter (y los logs) usen la IP real del visitante
+      # en vez de la de Caddy (que sería la misma para todo el mundo).
+      TRUST_PROXY_HOPS: 1
     depends_on:
       db:
         condition: service_healthy
