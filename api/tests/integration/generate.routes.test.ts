@@ -13,9 +13,10 @@ function buildApp() {
     },
   };
   const generationRepository: GenerationRepository = {
-    save: vi.fn(),
+    reserveSlot: vi.fn().mockResolvedValue("reserved-1"),
+    finalize: vi.fn(),
+    discard: vi.fn(),
     getRecent: vi.fn(),
-    countSince: vi.fn().mockResolvedValue(0),
   };
   const generateCopyService = new GenerateCopyService(aiProvider, generationRepository);
   return createApp({ generateCopyService, generationRepository });

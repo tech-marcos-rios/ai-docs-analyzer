@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { GenerateCopyService } from "../../src/application/services/GenerateCopyService.js";
-import { GLOBAL_DAILY_GENERATION_LIMIT } from "../../src/application/common/constants.js";
 import type { AiGenerationStream, AiProvider } from "../../src/application/ports/AiProvider.js";
 import type { GenerationRepository } from "../../src/application/ports/GenerationRepository.js";
 import type { Generation } from "../../src/domain/entities/Generation.js";
@@ -29,16 +28,17 @@ const baseRequest = {
 };
 
 const CLIENT_ID = "client-abc";
+const RESERVATION_ID = "reserved-1";
 
 describe("GenerateCopyService.generate", () => {
-  it("streams chunks, persiste la generación (con clientId) y devuelve éxito", async () => {
+  it("streams chunks, finaliza la reserva y devuelve éxito", async () => {
     const aiProvider: AiProvider = {
       name: "claude",
       generateStream: () => fakeStream(["Hola ", "mundo"]),
     };
 
-    const saved: Generation = {
-      id: "1",
+    const finalized: Generation = {
+      id: RESERVATION_ID,
       clientId: CLIENT_ID,
       ...baseRequest,
       generatedText: "Hola mundo",
@@ -49,71 +49,79 @@ describe("GenerateCopyService.generate", () => {
     };
 
     const generationRepository: GenerationRepository = {
-      save: vi.fn().mockResolvedValue(saved),
+      reserveSlot: vi.fn(),
+      finalize: vi.fn().mockResolvedValue(finalized),
+      discard: vi.fn(),
       getRecent: vi.fn(),
-      countSince: vi.fn(),
     };
 
     const service = new GenerateCopyService(aiProvider, generationRepository);
     const chunksReceived: string[] = [];
 
-    const result = await service.generate(baseRequest, CLIENT_ID, (chunk) =>
+    const result = await service.generate(RESERVATION_ID, baseRequest, (chunk) =>
       chunksReceived.push(chunk),
     );
 
     expect(chunksReceived).toEqual(["Hola ", "mundo"]);
     expect(result.isSuccess).toBe(true);
-    expect(result.value).toEqual(saved);
-    expect(generationRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ clientId: CLIENT_ID, generatedText: "Hola mundo", tokensUsed: 42 }),
+    expect(result.value).toEqual(finalized);
+    expect(generationRepository.finalize).toHaveBeenCalledWith(
+      RESERVATION_ID,
+      expect.objectContaining({ generatedText: "Hola mundo", tokensUsed: 42 }),
     );
+    expect(generationRepository.discard).not.toHaveBeenCalled();
   });
 
-  it("devuelve failure cuando el modelo no genera contenido", async () => {
+  it("descarta la reserva y devuelve failure cuando el modelo no genera contenido", async () => {
     const aiProvider: AiProvider = {
       name: "claude",
       generateStream: () => fakeStream([]),
     };
 
     const generationRepository: GenerationRepository = {
-      save: vi.fn(),
+      reserveSlot: vi.fn(),
+      finalize: vi.fn(),
+      discard: vi.fn(),
       getRecent: vi.fn(),
-      countSince: vi.fn(),
     };
 
     const service = new GenerateCopyService(aiProvider, generationRepository);
-    const result = await service.generate(baseRequest, CLIENT_ID, () => {});
+    const result = await service.generate(RESERVATION_ID, baseRequest, () => {});
 
     expect(result.isSuccess).toBe(false);
-    expect(generationRepository.save).not.toHaveBeenCalled();
+    expect(generationRepository.finalize).not.toHaveBeenCalled();
+    expect(generationRepository.discard).toHaveBeenCalledWith(RESERVATION_ID);
   });
 });
 
-describe("GenerateCopyService.checkGlobalCapacity", () => {
+describe("GenerateCopyService.reserveSlot", () => {
   const aiProvider: AiProvider = { name: "claude", generateStream: () => fakeStream([]) };
 
-  it("permite generar cuando el conteo diario está debajo del límite", async () => {
+  it("permite generar y devuelve el id reservado cuando hay lugar", async () => {
     const generationRepository: GenerationRepository = {
-      save: vi.fn(),
+      reserveSlot: vi.fn().mockResolvedValue(RESERVATION_ID),
+      finalize: vi.fn(),
+      discard: vi.fn(),
       getRecent: vi.fn(),
-      countSince: vi.fn().mockResolvedValue(GLOBAL_DAILY_GENERATION_LIMIT - 1),
     };
 
     const service = new GenerateCopyService(aiProvider, generationRepository);
-    const result = await service.checkGlobalCapacity();
+    const result = await service.reserveSlot(baseRequest, CLIENT_ID);
 
     expect(result.isSuccess).toBe(true);
+    expect(result.value).toBe(RESERVATION_ID);
   });
 
-  it("bloquea cuando se alcanzó el límite diario global", async () => {
+  it("bloquea cuando el repositorio no pudo reservar (tope diario alcanzado)", async () => {
     const generationRepository: GenerationRepository = {
-      save: vi.fn(),
+      reserveSlot: vi.fn().mockResolvedValue(null),
+      finalize: vi.fn(),
+      discard: vi.fn(),
       getRecent: vi.fn(),
-      countSince: vi.fn().mockResolvedValue(GLOBAL_DAILY_GENERATION_LIMIT),
     };
 
     const service = new GenerateCopyService(aiProvider, generationRepository);
-    const result = await service.checkGlobalCapacity();
+    const result = await service.reserveSlot(baseRequest, CLIENT_ID);
 
     expect(result.isSuccess).toBe(false);
   });

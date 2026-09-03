@@ -21,9 +21,9 @@ export function generateRoutes(generateCopyService: GenerateCopyService): Router
       return;
     }
 
-    const capacity = await generateCopyService.checkGlobalCapacity();
-    if (!capacity.isSuccess) {
-      res.status(429).json({ status: 429, title: capacity.error });
+    const reservation = await generateCopyService.reserveSlot(parsed.data, clientId.data);
+    if (!reservation.isSuccess) {
+      res.status(429).json({ status: 429, title: reservation.error });
       return;
     }
 
@@ -35,9 +35,13 @@ export function generateRoutes(generateCopyService: GenerateCopyService): Router
     res.flushHeaders();
 
     try {
-      const result = await generateCopyService.generate(parsed.data, clientId.data, (chunk) => {
-        res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
-      });
+      const result = await generateCopyService.generate(
+        reservation.value!,
+        parsed.data,
+        (chunk) => {
+          res.write(`event: chunk\ndata: ${JSON.stringify({ text: chunk })}\n\n`);
+        },
+      );
 
       if (result.isSuccess && result.value) {
         res.write(`event: done\ndata: ${JSON.stringify({ id: result.value.id })}\n\n`);
