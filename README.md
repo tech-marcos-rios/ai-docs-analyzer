@@ -115,6 +115,13 @@ Importante mostrar que entendés esto:
 - Calcula costo aproximado y muéstralo en la UI.
 - Usa el modelo más barato que dé buena calidad (Claude Haiku, GPT-4o-mini).
 
+## Git Flow
+
+- `master` — producción. Protegida: requiere PR + CI en verde (`api` y `web`), sin push directo ni force-push.
+- `develop` — integración, rama default del repo. Misma protección que `master`.
+- `feature/*` / `fix/*` / `chore/*` — ramas de trabajo, se mergean a `develop` vía PR.
+- `release/*` / `hotfix/*` — promueven `develop` a `master`.
+
 ## Por qué este proyecto
 
 La integración con IA está extremadamente demandada en 2026. Si tenés esto en el portafolio, calificás automáticamente para una franja de proyectos donde la mayoría de freelancers no pueden competir.

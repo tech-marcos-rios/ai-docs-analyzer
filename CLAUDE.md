@@ -119,7 +119,11 @@ Cuando se despliegue, `TRUST_PROXY_HOPS` queda en `0` mientras el acceso sea dir
 
 ## Git Flow
 
-Mismo patrón que el resto del portafolio numerado: `master` protegida, features en `feature/*`, Conventional Commits.
+- `master` — producción. Protegida: requiere PR + CI en verde (`api` y `web`), sin push directo ni force-push.
+- `develop` — integración, rama default del repo. Misma protección que `master`.
+- `feature/*` / `fix/*` / `chore/*` — ramas de trabajo, se mergean a `develop` vía PR.
+- `release/*` / `hotfix/*` — promueven `develop` a `master`.
+- Conventional Commits obligatorios.
 Scopes sugeridos: `generate`, `history`, `providers`, `infra`, `config`.
 
 ---
